@@ -1,0 +1,17 @@
+# Web Framework
+fastapi==0.110.0
+uvicorn==0.27.1
+
+# Scraping (Playwright)
+playwright==1.42.0
+
+# Data Analysis
+pandas==2.2.1
+
+# Database (PostgreSQL & ORM)
+sqlalchemy==2.0.28
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+
+# Async Utilities
+asyncio==3.4.3

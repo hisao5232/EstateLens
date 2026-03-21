@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Docker / DB
+postgres_data/
+.env
+
+# Playwright
+test-results/
+pw-browsers/
+
+# OS
+.DS_Store
+Thumbs.db
