@@ -9,14 +9,25 @@ services:
     ports:
       - "5432:5432"
 
-  backend:
+  fastapi_backend:
     build: ./backend
     container_name: fastapi_backend
     env_file: .env
-    depends_on:
-      - db
-    volumes:
-      - ./backend:/app
-    ports:
-      - "8000:8000"
-    tty: true
+    restart: always
+    networks:
+      - traefik-public  # Traefikとの通信用
+      - default         # Postgresとの通信用
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.estatelens.rule=Host(`api-lens.go-pro-world.net`)"
+      - "traefik.http.routers.estatelens.entrypoints=websecure"
+      - "traefik.http.routers.estatelens.tls.certresolver=lets-encrypt"
+      - "traefik.http.services.estatelens.loadbalancer.server.port=8000"
+      - "traefik.docker.network=traefik-public"
+networks:
+  traefik-public:
+    external: true
+
+volumes:
+  postgres_data:
+  
