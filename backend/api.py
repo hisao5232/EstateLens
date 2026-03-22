@@ -1,6 +1,8 @@
 import uvicorn
+import pandas as pd
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import SessionLocal, init_db, Property
 import scraper
 import processor
@@ -73,6 +75,47 @@ def get_properties(db: Session = Depends(get_db)):
     # データベースから最新の5件を取得
     properties = db.query(Property).order_by(Property.id.desc()).limit(5).all()
     return properties
+
+@app.get("/analysis/stats")
+def get_property_stats(db: Session = Depends(get_db)):
+    # 1. DBから全データを取得
+    properties = db.query(Property).all()
+    if not properties:
+        return {"message": "No data available"}
+
+    # 2. DataFrameの作成 (集計に必要なカラムを全て含める)
+    data = []
+    for p in properties:
+        data.append({
+            "id": p.id,           # ← これが必要でした！
+            "rent": p.rent,
+            "area": p.area,
+            "age": p.age,
+            "station_dist": p.station_dist
+        })
+    df = pd.DataFrame(data)
     
+    # 3. 分析ロジック
+    # 1㎡あたりの家賃（単価）
+    df['unit_price'] = df['rent'] / df['area']
+    
+    # 築年数を5年刻みでグループ化
+    df['age_group'] = (df['age'] // 5) * 5
+    
+    # グループごとの平均を算出 (idはカウントに使用)
+    age_stats = df.groupby('age_group').agg({
+        'rent': 'mean',
+        'unit_price': 'mean',
+        'id': 'count'
+    }).rename(columns={'id': 'count'}).reset_index()
+
+    # JSONで返せる形式（辞書）に変換
+    return {
+        "avg_rent": float(df['rent'].mean()),
+        "avg_unit_price": float(df['unit_price'].mean()),
+        "total_count": int(len(df)),
+        "age_dist": age_stats.to_dict(orient='records')
+    }
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
