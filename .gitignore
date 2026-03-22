@@ -1,19 +1,26 @@
-# Python
+# --- Python / Backend ---
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
+.env
+.venv
+env/
 venv/
 ENV/
 
-# Docker / DB
-postgres_data/
-.env
+# --- Node.js / Frontend ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
 
-# Playwright
-test-results/
-pw-browsers/
-
-# OS
+# --- OS / IDE ---
 .DS_Store
-Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# --- Docker ---
+.docker-compose.override.yml
