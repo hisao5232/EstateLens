@@ -1,6 +1,7 @@
 import uvicorn
 import pandas as pd
 import os
+import re
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -126,6 +127,24 @@ def get_property_stats(db: Session = Depends(get_db), _ = Depends(verify_api_key
         "total_count": int(len(df)),
         "age_dist": age_stats.to_dict(orient='records')
     }
+
+@app.get("/analysis/raw")
+async def get_raw_data():
+    # 1. スクレイピング実行
+    raw_rooms = await scraper.fetch_data(max_pages=5)
+    
+    # 2. あなたが作った関数でクレンジング
+    df = processor.clean_properties(raw_rooms)
+    
+    if df.empty:
+        return []
+
+    # 3. 散布図用に少し計算を追加（管理費込みの家賃など）
+    df['total_rent'] = df['rent_num'] + df['admin_num']
+    
+    # 4. JSONとして返せる形式（辞書のリスト）に変換
+    # NaN（欠損値）があるとJSON変換でエラーになることがあるので fillna で埋める
+    return df.fillna(0).to_dict(orient="records")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
