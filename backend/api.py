@@ -14,8 +14,10 @@ app = FastAPI(title="EstateLens API")
 # ローカル開発環境のNext.jsからのアクセスを許可
 origins = [
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "https://go-pro-world.net",
-    "https://api-lens.go-pro-world.net"
+    "https://api-lens.go-pro-world.net",
+    "https://estatelens.pages.dev"
 ]
 
 app.add_middleware(
@@ -23,7 +25,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["X-API-KEY", "Content-Type", "Authorization"],
 )
 
 # --- 2. APIキー認証の設定 ---
