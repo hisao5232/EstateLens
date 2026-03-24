@@ -129,22 +129,29 @@ def get_property_stats(db: Session = Depends(get_db), _ = Depends(verify_api_key
     }
 
 @app.get("/analysis/raw")
-async def get_raw_data():
-    # 1. スクレイピング実行
-    raw_rooms = await scraper.fetch_data(max_pages=5)
+async def get_raw_data(db: Session = Depends(get_db)): # DBセッションを追加
+    # 1. スクレイピングはせず、DBから全件取得する
+    properties = db.query(Property).all()
     
-    # 2. あなたが作った関数でクレンジング
-    df = processor.clean_properties(raw_rooms)
-    
-    if df.empty:
+    if not properties:
         return []
-
-    # 3. 散布図用に少し計算を追加（管理費込みの家賃など）
-    df['total_rent'] = df['rent_num'] + df['admin_num']
     
-    # 4. JSONとして返せる形式（辞書のリスト）に変換
-    # NaN（欠損値）があるとJSON変換でエラーになることがあるので fillna で埋める
-    return df.fillna(0).to_dict(orient="records")
+    # 2. フロントエンドが期待する形式（dict）に変換
+    plot_data = []
+    for p in properties:
+        plot_data.append({
+            "title": p.title,
+            "rent_num": float(p.rent),
+            "admin_num": float(p.admin_fee),
+            "total_rent": float(p.rent + p.admin_fee),
+            "age_num": int(p.age),
+            "area_num": float(p.area),
+            "walk_num": int(p.station_dist),
+            "address": p.address,
+            "detail_url": p.url
+        })
+    
+    return plot_data
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
