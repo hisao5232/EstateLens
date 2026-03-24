@@ -55,39 +55,50 @@ def index():
 
 @app.post("/scrape")
 async def run_scraping(db: Session = Depends(get_db), _ = Depends(verify_api_key)):
+    # 1. 【追加】スクレイピング前に既存データを全削除して「更地」にする
+    try:
+        db.query(Property).delete()
+        db.commit()
+        print("Existing data cleared. Starting fresh scrape...")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to clear database: {e}")
+
+    # 2. 全ページスクレイピング実行（無限ループ版）
     raw_data = await scraper.fetch_data()
-    if not raw_data:
-        raise HTTPException(status_code=500, detail="Failed to fetch data")
     
+    if not raw_data:
+        raise HTTPException(status_code=500, detail="Failed to fetch data from scraper")
+    
+    # 3. クレンジング（数値化）
     cleaned_df = processor.clean_properties(raw_data)
     
+    # 4. 新しいデータを一括保存
     new_records_count = 0
     for _, row in cleaned_df.iterrows():
-        exists = db.query(Property).filter(Property.url == row.get('detail_url')).first()
-        if not exists:
-            db_property = Property(
-                title=row['title'],
-                rent=row['rent_num'],
-                admin_fee=row['admin_num'],
-                age=row['age_num'],
-                area=row['area_num'],
-                station_dist=row['walk_num'],
-                address=row.get('address', 'N/A'),
-                url=row['detail_url']
-            )
-            db.add(db_property)
-            new_records_count += 1
+        db_property = Property(
+            title=row['title'],
+            rent=row['rent_num'],
+            admin_fee=row['admin_num'],
+            age=row['age_num'],
+            area=row['area_num'],
+            station_dist=row['walk_num'],
+            address=row.get('address', 'N/A'),
+            url=row['detail_url']
+        )
+        db.add(db_property)
+        new_records_count += 1
             
     try:
         db.commit()
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error during save: {e}")
     
     return {
         "status": "success",
         "total_scraped": len(raw_data),
-        "new_records_saved": new_records_count
+        "total_saved": new_records_count
     }
 
 @app.get("/properties")
