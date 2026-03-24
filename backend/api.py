@@ -18,6 +18,7 @@ origins = [
     "http://127.0.0.1:3000",
     "https://go-pro-world.net",
     "https://api-lens.go-pro-world.net",
+    "https://estate-lens.go-pro-world.net",
     "https://estatelens.pages.dev"
 ]
 
