@@ -1,6 +1,7 @@
 import uvicorn
 import pandas as pd
 import os
+import re
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -14,8 +15,10 @@ app = FastAPI(title="EstateLens API")
 # ローカル開発環境のNext.jsからのアクセスを許可
 origins = [
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "https://go-pro-world.net",
-    "https://api-lens.go-pro-world.net"
+    "https://api-lens.go-pro-world.net",
+    "https://estatelens.pages.dev"
 ]
 
 app.add_middleware(
@@ -23,7 +26,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["X-API-KEY", "Content-Type", "Authorization"],
 )
 
 # --- 2. APIキー認証の設定 ---
@@ -124,6 +127,31 @@ def get_property_stats(db: Session = Depends(get_db), _ = Depends(verify_api_key
         "total_count": int(len(df)),
         "age_dist": age_stats.to_dict(orient='records')
     }
+
+@app.get("/analysis/raw")
+async def get_raw_data(db: Session = Depends(get_db)): # DBセッションを追加
+    # 1. スクレイピングはせず、DBから全件取得する
+    properties = db.query(Property).all()
+    
+    if not properties:
+        return []
+    
+    # 2. フロントエンドが期待する形式（dict）に変換
+    plot_data = []
+    for p in properties:
+        plot_data.append({
+            "title": p.title,
+            "rent_num": float(p.rent),
+            "admin_num": float(p.admin_fee),
+            "total_rent": float(p.rent + p.admin_fee),
+            "age_num": int(p.age),
+            "area_num": float(p.area),
+            "walk_num": int(p.station_dist),
+            "address": p.address,
+            "detail_url": p.url
+        })
+    
+    return plot_data
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
