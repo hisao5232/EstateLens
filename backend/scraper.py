@@ -45,6 +45,9 @@ async def fetch_data(): # 引数なし（全件）
                         rent_el = await room.query_selector("td:nth-child(4) li:nth-child(1) span")
                         admin_el = await room.query_selector("td:nth-child(4) li:nth-child(2) span")
                         url_el = await room.query_selector("td.ui-text--midium.ui-text--bold a")
+                        # --- 【追加・修正】間取りと面積のセレクター ---
+                        # 6番目のtdの、1番目のliが「間取り」、2番目が「面積」
+                        layout_el = await room.query_selector("td:nth-child(6) li:nth-child(1) span")
                         menseki_el = await room.query_selector("td:nth-child(6) li:nth-child(2) span")
 
                         all_rooms.append({
@@ -52,6 +55,7 @@ async def fetch_data(): # 引数なし（全件）
                             "floor": await floor_el.inner_text() if floor_el else "N/A",
                             "rent": await rent_el.inner_text() if rent_el else "N/A",
                             "admin": await admin_el.inner_text() if admin_el else "N/A",
+                            "layout": await layout_el.inner_text() if layout_el else "N/A", # ← 【追加】
                             "detail_url": "https://suumo.jp" + await url_el.get_attribute("href") if url_el else "N/A",
                             "menseki": await menseki_el.inner_text() if menseki_el else "0m2"
                         })
@@ -76,4 +80,3 @@ async def fetch_data(): # 引数なし（全件）
             return all_rooms
         finally:
             await browser.close()
-            

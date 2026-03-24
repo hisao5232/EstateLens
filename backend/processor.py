@@ -1,6 +1,5 @@
 import pandas as pd
 import re
-import json
 
 def clean_properties(raw_data):
     if not raw_data:
@@ -22,7 +21,7 @@ def clean_properties(raw_data):
     def parse_age(x):
         if '新築' in str(x): return 0
         val = re.search(r'築(\d+)年', str(x))
-        return int(val.group(1)) if val else None
+        return int(val.group(1)) if val else 0 # Noneではなく0かデフォルト値を入れておくと計算が楽です
     df['age_num'] = df['age_floor'].apply(parse_age)
     
     # 4. 専有面積を数値に変換 "52.55m2" -> 52.55
@@ -33,27 +32,17 @@ def clean_properties(raw_data):
         walk_times = re.findall(r'歩(\d+)分', str(x))
         if walk_times:
             return min([int(t) for t in walk_times])
-        return None
+        return 0
     df['walk_num'] = df['access'].apply(parse_walk)
 
-    # 必要な列だけ抽出して整理
-    result_df = df[['title', 'rent_num', 'admin_num', 'age_num', 'area_num', 'walk_num', 'address','detail_url']]
-    return result_df
-
-if __name__ == "__main__":
-    # テスト用のダミーデータ（先頭の取得結果を模したもの）
-    test_data = [
-        {
-            "title": "カサブランカ",
-            "access": "ＪＲ京浜東北線/本郷台駅 歩14分\nＪＲ京浜東北線/港南台駅 歩38分",
-            "age_floor": "築20年\n2階建",
-            "rent": "9.4万円",
-            "admin": "5000円",
-            "menseki": "52.55m2"
-        }
+    # --- 必要な列だけ抽出して整理 ---
+    # layout を追加。計算不要な項目はそのままパススルーさせます
+    cols = [
+        'title', 'rent_num', 'admin_num', 'age_num', 
+        'area_num', 'walk_num', 'address', 'detail_url', 'layout'
     ]
     
-    print("--- Cleaning Test ---")
-    cleaned_df = clean_properties(test_data)
-    print(cleaned_df.to_string(index=False))
+    # 念のためカラムが存在するかチェックして抽出
+    result_df = df[[c for c in cols if c in df.columns]]
+    return result_df
     
