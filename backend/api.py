@@ -85,7 +85,8 @@ async def run_scraping(db: Session = Depends(get_db), _ = Depends(verify_api_key
             area=row['area_num'],
             station_dist=row['walk_num'],
             address=row.get('address', 'N/A'),
-            url=row['detail_url']
+            url=row['detail_url'],
+            layout=row.get('layout', 'N/A')
         )
         db.add(db_property)
         new_records_count += 1
@@ -113,31 +114,38 @@ def get_property_stats(db: Session = Depends(get_db), _ = Depends(verify_api_key
     if not properties:
         return {"message": "No data available"}
 
-    data = []
-    for p in properties:
-        data.append({
-            "id": p.id,
-            "rent": p.rent,
-            "area": p.area,
-            "age": p.age,
-            "station_dist": p.station_dist
-        })
-    df = pd.DataFrame(data)
+    # DataFrame化（全ての分析に必要な項目を入れる）
+    df = pd.DataFrame([{
+        "rent": p.rent,
+        "area": p.area,
+        "age": p.age,
+        "layout": p.layout
+    } for p in properties])
     
+    # 共通の計算
     df['unit_price'] = df['rent'] / df['area']
     df['age_group'] = (df['age'] // 5) * 5
-    
+
+    # 1. 間取りごとの統計
+    layout_stats = df.groupby('layout').agg({
+        'rent': ['mean', 'count'],
+        'area': 'mean'
+    }).reset_index()
+    layout_stats.columns = ['layout', 'avg_rent', 'count', 'avg_area']
+
+    # 2. 築年数ごとの統計（以前のフロントエンド用）
     age_stats = df.groupby('age_group').agg({
         'rent': 'mean',
         'unit_price': 'mean',
-        'id': 'count'
-    }).rename(columns={'id': 'count'}).reset_index()
+        'age': 'count'
+    }).rename(columns={'age': 'count'}).reset_index()
 
     return {
         "avg_rent": float(df['rent'].mean()),
         "avg_unit_price": float(df['unit_price'].mean()),
         "total_count": int(len(df)),
-        "age_dist": age_stats.to_dict(orient='records')
+        "layout_stats": layout_stats.to_dict(orient='records'), # 新機能
+        "age_dist": age_stats.to_dict(orient='records')        # 既存維持
     }
 
 @app.get("/analysis/raw")
@@ -160,7 +168,8 @@ async def get_raw_data(db: Session = Depends(get_db)): # DBセッションを追
             "area_num": float(p.area),
             "walk_num": int(p.station_dist),
             "address": p.address,
-            "detail_url": p.url
+            "detail_url": p.url,
+            "layout": p.layout
         })
     
     return plot_data
